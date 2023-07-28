@@ -45,6 +45,7 @@ class Calibrator(object):
 
     def calibrate_camera(self):
         w, h = self.shape_inner_corner
+        # 设置角点查找的终止条件。在这里使用了一个迭代次数和一个误差阈值的组合，即当迭代次数达到30次或误差小于0.001时，停止角点查找
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         # 3D点阵
         points_world = []
@@ -80,7 +81,9 @@ class Calibrator(object):
         print("旋转向量: \n{}".format(rvecs))
         print("平移向量: \n{}".format(tvecs))
 
-        # calculate the error of reproject
+        # 计算重投影误差：
+        # 为每个图像计算重投影误差，即将世界坐标点重新投影到图像上，并计算实际像素坐标和重投影的像素坐标之间的距离。
+        # 最后计算平均重投影误差，并输出结果。
         total_error = 0
         for i in range(len(points_world)):
             points_pixel_repro, _ = cv2.projectPoints(points_world[i], rvecs[i], tvecs[i], mtx, dist)
@@ -91,3 +94,22 @@ class Calibrator(object):
         self.mat_intri = mtx
         self.coff_dis = dist
         return mtx, dist
+
+    # 含畸变并校正
+    def dedistortion(self, save_dir):
+        # 确保获取内参矩阵和畸变参数
+        if self.mat_intri is None:
+            assert self.coff_dis is None
+            self.calibrate_camera()
+
+        w, h = self.shape_inner_corner
+        for img_path in self.img_paths:
+            _, img_name = os.path.split(img_path)
+            img = cv2.imread(img_path)
+            # 计算一个优化的相机投影矩阵 newcameramtx 和一个感兴趣区域 roi，用于后续的校正操作
+            newcameramtx, roi = cv2.getOptimalNewCameraMatrix(self.mat_intri, self.coff_dis, (w, h), 0, (w, h))
+            # dst为校正后的图像
+            dst = cv2.undistort(img, self.mat_intri, self.coff_dis, None, newcameramtx)
+            cv2.imwrite(os.path.join(save_dir, img_name), dst)
+        print("Dedistorted images have been saved to {}".format(save_dir))
+

@@ -18,7 +18,7 @@ objp[0, :, :2] = np.mgrid[0:CHECKERBOARD[0], 0:CHECKERBOARD[1]].T.reshape(-1, 2)
 prev_img_shape = None
 
 # glob拉所有图片
-images = glob.glob('./pic/rgb2ir/*.jpg')
+images = glob.glob('pic/rgb/*.jpg')
 for fname in images:
     img = cv2.imread(fname)
     # 转灰度
